@@ -1,0 +1,9 @@
+
+*.txt
+!requirements.txt
+*.json
+*.gz
+*.csv
+*.parquet
+lambda_dependencies
+.streamlit
