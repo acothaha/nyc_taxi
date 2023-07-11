@@ -20,7 +20,9 @@
 *.tar
 *.zip
 *.parquet
+*.parquet.crc
 *.csv.gz
+*.csv
 
 # Logs and databases #
 ######################
