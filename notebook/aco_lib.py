@@ -1,5 +1,7 @@
 import requests
 import os
+import datetime
+from dateutil.relativedelta import relativedelta
 
 def download_file(url, path=''):
     local_filename = url.split('/')[-1]
@@ -16,4 +18,14 @@ def download_file(url, path=''):
             for chunk in r.iter_content(chunk_size=4000): 
                 f.write(chunk)
     return local_filename
-    
+
+
+def get_last_months(months, year=datetime.date.today().strftime("%Y"), month=datetime.date.today().strftime("%m")):
+    start_date = datetime.datetime.strptime(f'{year}-{month}', '%Y-%m')
+
+    result = []
+    for i in range(months):
+        result.append((start_date.year,start_date.month))
+        start_date += relativedelta(months = -1)
+
+    return result

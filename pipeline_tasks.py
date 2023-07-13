@@ -51,11 +51,17 @@ def load_yellow_taxi(spark: SparkSession, dir_path: str, year: int, month: int):
     taxi_type = 'yellow'
     fmonth = f'{month:02d}'
 
-    _ = aco_lib.download_file(f'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{taxi_type}/{taxi_type}_tripdata_{year}-{fmonth}.csv.gz', f'{dir_path}/data/raw/{taxi_type}/{year}')
+    url = f'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{taxi_type}/{taxi_type}_tripdata_{year}-{fmonth}.csv.gz'
+    destination = f'{dir_path}/data/raw/{taxi_type}/{year}'
+
+    if os.path.exists(destination + f'/{taxi_type}_tripdata_{year}-{fmonth}.csv.gz'):
+        pass
+    else:
+      _ = aco_lib.download_file(url, destination)
 
 
 @task(name="Loading green taxi data to local")
-def load_green_taxi(dir_path: str, year: int, month: int):
+def load_green_taxi(spark: SparkSession, dir_path: str, year: int, month: int):
     """
     Function to load the green taxi data
 
@@ -69,23 +75,33 @@ def load_green_taxi(dir_path: str, year: int, month: int):
     taxi_type = 'green'
     fmonth = f'{month:02d}'
 
-    _ = aco_lib.download_file(f'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{taxi_type}/{taxi_type}_tripdata_{year}-{fmonth}.csv.gz', f'{dir_path}/data/raw/{taxi_type}/{year}')
+    url = f'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{taxi_type}/{taxi_type}_tripdata_{year}-{fmonth}.csv.gz'
+    destination = f'{dir_path}/data/raw/{taxi_type}/{year}'
+
+    if os.path.exists(destination + f'/{taxi_type}_tripdata_{year}-{fmonth}.csv.gz'):
+        pass
+    else:
+      _ = aco_lib.download_file(url, destination)
 
 
 @task(name="Loading lookup data to local")
-def load_lookup(dir_path: str):
+def load_lookup(spark: SparkSession, dir_path: str):
     """
     Function to load the lookup data
 
     Args:
+      - spark (SparkSession): The spark session
       - dir_path (string): It is the path for the main.py
     """
+
+    url = 'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/misc/taxi_zone_lookup.csv'
+    destination = f'{dir_path}/data/lookup'
 
     _ = aco_lib.download_file('https://github.com/DataTalksClub/nyc-tlc-data/releases/download/misc/taxi_zone_lookup.csv', f'{dir_path}/data/lookup')
 
 
-@task(name="Reading local CSV files")
-def read_local_csv(spark: SparkSession, dir_path: str, year: int, month: int, taxi_type: str, schema: types.StructType) -> SparkDataFrame:
+@task(name="Reading taxi local CSV files")
+def read_taxi_local_csv(spark: SparkSession, dir_path: str, year: int, month: int, n_month: int, taxi_type: str, schema: types.StructType) -> SparkDataFrame:
     
     """
     Function to read local csv
@@ -95,13 +111,38 @@ def read_local_csv(spark: SparkSession, dir_path: str, year: int, month: int, ta
       - dir_path (string): It is the path for the main.py
       - year (int): The year of data taken
       - month (int): The month of data taken
+      - months_n (int): The number of months back of data retrieved
       - taxi_type (str): The type of taxi
+      - schema (types.StructType): The schema used for the data
     """
 
+    date_lst = aco_lib.get_last_months(n_month, year, month)
+    path_lst = [f'{dir_path}/data/raw/{taxi_type}/{date_year}/{taxi_type}_tripdata_{date_year}-{date_month:02d}.csv.gz' for date_year, date_month in date_lst]
+  
     df = spark.read \
           .option('header', 'true') \
           .schema(schema) \
-          .csv(f'{dir_path}/data/raw/{taxi_type}/{year}/{taxi_type}_tripdata_{year}-{month}.csv.gz')
+          .csv(path_lst)
+
+    return df
+
+
+@task(name="Reading lookup local CSV files")
+def read_lookup_local_csv(spark: SparkSession, dir_path: str) -> SparkDataFrame:
+    
+    """
+    Function to read local csv
+
+    Args:
+      - spark (SparkSession): The spark session
+      - dir_path (string): It is the path for the main.py
+    """
+
+    path = f'{dir_path}/data/lookup/taxi_zone_lookup.csv'
+  
+    df = spark.read \
+          .option('header', 'true') \
+          .csv(path)
 
     return df
 
@@ -124,7 +165,12 @@ def save_raw_parquet_local(spark: SparkSession, dir_path: str, dataframe: SparkD
     df = dataframe.repartition(n_partition)
     fmonth = f'{month:02d}'
 
-    _ = df.write.parquet(f'{dir_path}/data/parquet/{taxi_type}/{year}/{fmonth}/', mode='overwrite')
+    destination = f'{dir_path}/data/parquet/{taxi_type}/{year}/{fmonth}/'
+
+    if os.path.exists(destination):
+        pass
+    else:
+        _ = df.write.parquet(destination, mode='overwrite')
 
 
 @task(name="Joining yellow and green taxi")
@@ -223,7 +269,7 @@ def data_wrangling(spark: SparkSession, dataframe: SparkDataFrame) -> SparkDataF
 
 
 @task(name="Joining with lookup data")
-def data_wrangling(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame, lookup: SparkDataFrame) -> SparkDataFrame:
+def join_lookup(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame, lookup: SparkDataFrame) -> SparkDataFrame:
     """
     Function to read local csv
 
@@ -234,13 +280,24 @@ def data_wrangling(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame
       - lookup (SparkDataFrame): The lookup dataframe
     """
 
-    df_result_joined = dataframe.join(lookup, dataframe['revenue_zone'] == lookup['LocationID'])
+    df_joined = dataframe.join(lookup, dataframe['revenue_zone'] == lookup['LocationID'])
 
     
-    _ = df_result_joined.drop('LocationID').write.parquet(f'{dir_path}/data/report/revenue_zones/')
+    _ = df_joined.drop('LocationID').write.parquet(f'{dir_path}/data/report/revenue_zones/', mode='overwrite')
 
 @task(name="Writing to postgres")
 def write_to_postgres(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame) -> SparkDataFrame:
+    """
+    Function to read local csv
+
+    Args:
+      - spark (SparkSession): The spark session
+      - dir_path (string): It is the path for the main.py
+      - dataframe (SparkDataFrame): The dataframe that will be written to postgres
+    """
+
+@task(name="Writing to BigQuery")
+def write_to_bigquery(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame) -> SparkDataFrame:
     """
     Function to read local csv
 
