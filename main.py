@@ -12,6 +12,7 @@ import argparse
 import datetime
 from multiprocessing import cpu_count
 from prefect import flow
+from prefect_gcp import GcpCredentials
 from pyspark import SparkConf
 from pyspark.sql import types
 from aco_lib import download_file, get_last_months
@@ -33,7 +34,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 @flow(name="NYC_Taxi Data Pipeline Flow")
-def data_pipeline(n_month, year, month, schema_yellow, schema_green):
+def data_pipeline(n_month, year, month, schema_yellow, schema_green, bq_client, bq_table_id):
     '''
     Function wrapped to be used as the Prefect main flow
     '''
@@ -129,6 +130,12 @@ def data_pipeline(n_month, year, month, schema_yellow, schema_green):
                                 dataframe=df_wrangled,
                                 lookup=df_lookup
                                 )
+        
+        write_to_bigquery(spark=spark_session,
+                          dir_path=dir_path,
+                          bq_client=bq_client,
+                          bq_table_id=bq_table_id
+                          )
 
         
 if __name__ == '__main__':
@@ -195,11 +202,17 @@ if __name__ == '__main__':
                     types.StructField('congestion_surcharge', types.DoubleType(), True)])
 
 
+    gcp_credentials_block = GcpCredentials.load("zoomcamp-gcp-creds")
 
+    bq_client_ = gcp_credentials_block.get_bigquery_client()
+    
+    bq_table_id = 'esoteric-code-377203.nyc_taxi_report.revenue_zones'
 
     # Running the main flow
     data_pipeline(n_month=args.n_month,
                   year=args.year,
                   month=args.month,
                   schema_yellow=schema_yellow,
-                  schema_green=schema_green)
+                  schema_green=schema_green,
+                  bq_client=bq_client_,
+                  bq_table_id=bq_table_id)

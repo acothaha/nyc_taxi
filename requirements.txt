@@ -1,9 +1,11 @@
 prefect==2.7.7
 prefect-sqlalchemy==0.2.2
+prefect-gcp[cloud_storage]==0.2.4
 protobuf==4.21.11
 pyarrow==10.0.1
 psycopg2-binary==2.9.5
 sqlalchemy==1.4.46
 pyspark==3.1.1
 pydantic==1.10.11
-pandas
+pandas==1.5.2
+google-cloud-bigquery==3.9.0

@@ -13,6 +13,7 @@ import requests
 import pandas as pd
 import aco_lib
 from prefect import task
+from google.cloud import bigquery
 from pyspark import SparkConf
 from pyspark.sql import SparkSession, Window, types
 from pyspark.sql import DataFrame as SparkDataFrame
@@ -281,7 +282,6 @@ def join_lookup(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame, l
     """
 
     df_joined = dataframe.join(lookup, dataframe['revenue_zone'] == lookup['LocationID'])
-
     
     _ = df_joined.drop('LocationID').write.parquet(f'{dir_path}/data/report/revenue_zones/', mode='overwrite')
 
@@ -297,12 +297,37 @@ def write_to_postgres(spark: SparkSession, dir_path: str, dataframe: SparkDataFr
     """
 
 @task(name="Writing to BigQuery")
-def write_to_bigquery(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame) -> SparkDataFrame:
+def write_to_bigquery(spark: SparkSession, dir_path: str, bq_client, bq_table_id: str):
     """
     Function to read local csv
 
     Args:
       - spark (SparkSession): The spark session
       - dir_path (string): It is the path for the main.py
-      - dataframe (SparkDataFrame): The dataframe that will be written to postgres
+      - bq_client: BigQuery client with credentials
+      - bq_table_id: BigQuery table id
     """
+
+    path = f'{dir_path}/data/report/revenue_zones/'
+    
+    for file in os.listdir(path):
+      if file.endswith(".parquet"):
+        file_path = (os.path.join(path, file))
+
+    
+    job_config = bigquery.LoadJobConfig(source_format=bigquery.SourceFormat.PARQUET)
+    
+    with open(file_path, "rb") as file:
+      load_job = bq_client.load_table_from_file(
+          file, 
+          bq_table_id,
+          job_config=job_config)
+      
+    load_job.result()
+
+    destination_table = bq_client.get_table(bq_table_id)
+
+    #Print message
+    print(f'loaded {destination_table.num_rows} rows')
+
+
