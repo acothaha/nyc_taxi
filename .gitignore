@@ -40,3 +40,6 @@
 ehthumbs.db
 Thumbs.db
 
+# Spark generated files #
+######################
+*_SUCCESS

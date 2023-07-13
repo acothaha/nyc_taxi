@@ -145,7 +145,7 @@ if __name__ == '__main__':
                         type=int,
                         required=True,
                         default=int(datetime.date.today().strftime("%Y")))
-    parser.add_argument('--month', '-t',
+    parser.add_argument('--month', '-m',
                         help='Month of latest data retrieved',
                         type=int,
                         required=True,
