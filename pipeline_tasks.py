@@ -148,7 +148,7 @@ def read_lookup_local_csv(spark: SparkSession, dir_path: str) -> SparkDataFrame:
 
 
 @task(name="Saving raw Parquet locally")
-def save_raw_parquet_local(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame, year: int, month: int, taxi_type: str, n_partition: int = 24):
+def save_raw_parquet_local(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame, year: int, month: int, taxi_type: str, n_partition: int = 12):
     """
     Function to read local csv
 
@@ -170,7 +170,7 @@ def save_raw_parquet_local(spark: SparkSession, dir_path: str, dataframe: SparkD
     if os.path.exists(destination):
         pass
     else:
-        _ = df.write.parquet(destination, mode='overwrite')
+        _ = df.write.parquet(destination, compression='gzip', mode='overwrite')
 
 
 @task(name="Joining yellow and green taxi")
