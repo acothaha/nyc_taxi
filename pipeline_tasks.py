@@ -226,14 +226,44 @@ def join_yellow_green(spark: SparkSession, yellow: SparkDataFrame, green: SparkD
 
     return df_trips_data
 
-
-@task(name="Data Wrangling")
-def data_wrangling(spark: SparkSession, dataframe: SparkDataFrame) -> SparkDataFrame:
+@task(name="Joining with lookup data")
+def join_lookup(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame, lookup: SparkDataFrame) -> SparkDataFrame:
     """
     Function to read local csv
 
     Args:
       - spark (SparkSession): The spark session
+      - dir_path (string): It is the path for the main.py
+      - dataframe (SparkDataFrame): The main dataframe
+      - lookup (SparkDataFrame): The lookup dataframe
+    """
+
+    df_joined_PU = dataframe.join(lookup, dataframe['PULocationID'] == lookup['LocationID'])
+
+    for i in ['Borough', 'Zone', 'service_zone']:
+      df_joined_PU = df_joined_PU.withColumnRenamed(i, 'pickup_' + i)
+
+    df_joined_fin = df_joined_PU.drop('LocationID').join(lookup, df_joined_PU['DOLocationID'] == lookup['LocationID'])
+
+    for i in ['Borough', 'Zone', 'service_zone']:
+      df_joined_fin = df_joined_fin.withColumnRenamed(i, 'dropoff_' + i)
+    
+    _ = df_joined_fin.drop('DOLocationID') \
+                     .drop('PULocationID') \
+                     .drop('LocationID') \
+                     .coalesce(1) \
+                     .write.parquet(f'{dir_path}/data/report/fact_trip/', mode='overwrite')
+
+    return df_joined_fin
+
+@task(name="Create revenue zone table")
+def revenue_zones(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame) -> SparkDataFrame:
+    """
+    Function to create a revenue zones table
+
+    Args:
+      - spark (SparkSession): The spark session
+      - dir_path (string): It is the path for the main.py
       - dataframe (SparkDataFrame): The dataframe that will be wrangled
     """
 
@@ -243,7 +273,7 @@ def data_wrangling(spark: SparkSession, dataframe: SparkDataFrame) -> SparkDataF
     df_wrangled = spark.sql("""
     SELECT 
         -- Reveneue grouping 
-        PULocationID AS revenue_zone,
+        pickup_Zone AS revenue_zone,
         date_trunc('month', pickup_datetime) AS revenue_month, 
         service_type, 
 
@@ -262,28 +292,12 @@ def data_wrangling(spark: SparkSession, dataframe: SparkDataFrame) -> SparkDataF
         AVG(trip_distance) AS avg_monthly_trip_distance
     FROM
         trips_data
-    GROUP BY
+    GROUP BY 
         1, 2, 3
     """)
 
-    return df_wrangled
+    _ = df_wrangled.write.parquet(f'{dir_path}/data/report/revenue_zones/', mode='overwrite')
 
-
-@task(name="Joining with lookup data")
-def join_lookup(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame, lookup: SparkDataFrame) -> SparkDataFrame:
-    """
-    Function to read local csv
-
-    Args:
-      - spark (SparkSession): The spark session
-      - dir_path (string): It is the path for the main.py
-      - dataframe (SparkDataFrame): The main dataframe
-      - lookup (SparkDataFrame): The lookup dataframe
-    """
-
-    df_joined = dataframe.join(lookup, dataframe['revenue_zone'] == lookup['LocationID'])
-    
-    _ = df_joined.drop('LocationID').write.parquet(f'{dir_path}/data/report/revenue_zones/', mode='overwrite')
 
 @task(name="Writing to postgres")
 def write_to_postgres(spark: SparkSession, dir_path: str, dataframe: SparkDataFrame) -> SparkDataFrame:

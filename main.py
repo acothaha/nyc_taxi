@@ -24,7 +24,7 @@ from pipeline_tasks import (get_spark_session,
                             read_lookup_local_csv,
                             save_raw_parquet_local,
                             join_yellow_green,
-                            data_wrangling,
+                            revenue_zones,
                             join_lookup,
                             write_to_postgres,
                             write_to_bigquery)
@@ -65,72 +65,71 @@ def data_pipeline(n_month, year, month, schema_yellow, schema_green, bq_client, 
     with get_spark_session(conf=conf) as spark_session:
 
 
-        for y, m in get_last_months(n_month, year, month):
-            _ = load_yellow_taxi(spark=spark_session,
-                                 dir_path=dir_path,
-                                 year=y,
-                                 month=m)
+        # for y, m in get_last_months(n_month, year, month):
+        #     _ = load_yellow_taxi(spark=spark_session,
+        #                          dir_path=dir_path,
+        #                          year=y,
+        #                          month=m)
             
-            _ = load_green_taxi(spark=spark_session,
-                                dir_path=dir_path,
-                                year=y,
-                                month=m)
+        #     _ = load_green_taxi(spark=spark_session,
+        #                         dir_path=dir_path,
+        #                         year=y,
+        #                         month=m)
             
 
-        _ = load_lookup(spark=spark_session,
-                        dir_path=dir_path)
+        # _ = load_lookup(spark=spark_session,
+        #                 dir_path=dir_path)
         
         
-        df_yellow = read_taxi_local_csv(spark=spark_session,
-                                        dir_path=dir_path,
-                                        year=year,
-                                        month=month,
-                                        n_month=n_month,
-                                        taxi_type='yellow',
-                                        schema=schema_yellow)
-        
-
-        df_green = read_taxi_local_csv(spark=spark_session,
-                                       dir_path=dir_path,
-                                       year=year,
-                                       month=month,
-                                       n_month=n_month,
-                                       taxi_type='green',
-                                       schema=schema_green)
+        # df_yellow = read_taxi_local_csv(spark=spark_session,
+        #                                 dir_path=dir_path,
+        #                                 year=year,
+        #                                 month=month,
+        #                                 n_month=n_month,
+        #                                 taxi_type='yellow',
+        #                                 schema=schema_yellow)
         
 
-        for taxi_type, df in zip(['yellow', 'green'], [df_yellow, df_green]):
-            for y, m in get_last_months(n_month, year, month):
-                _ = save_raw_parquet_local(spark=spark_session,
-                                           dir_path=dir_path,
-                                           dataframe=df,
-                                           year=y,
-                                           month=m,
-                                           taxi_type=taxi_type,
-                                           )
+        # df_green = read_taxi_local_csv(spark=spark_session,
+        #                                dir_path=dir_path,
+        #                                year=year,
+        #                                month=month,
+        #                                n_month=n_month,
+        #                                taxi_type='green',
+        #                                schema=schema_green)
         
 
-        df_trips_data = join_yellow_green(spark=spark_session,
-                                          yellow=df_yellow,
-                                          green=df_green,
-                                          )
+        # for taxi_type, df in zip(['yellow', 'green'], [df_yellow, df_green]):
+        #     for y, m in get_last_months(n_month, year, month):
+        #         _ = save_raw_parquet_local(spark=spark_session,
+        #                                    dir_path=dir_path,
+        #                                    dataframe=df,
+        #                                    year=y,
+        #                                    month=m,
+        #                                    taxi_type=taxi_type,
+        #                                    )
+        
+
+        # df_trips_data = join_yellow_green(spark=spark_session,
+        #                                   yellow=df_yellow,
+        #                                   green=df_green,
+        #                                   )
                 
-
-        df_wrangled = data_wrangling(spark=spark_session,
-                                     dataframe=df_trips_data)
         
+        # df_lookup = read_lookup_local_csv(spark=spark_session,
+        #                                   dir_path=dir_path)
 
+
+        # df_joined = join_lookup(spark=spark_session,
+        #                         dir_path=dir_path,
+        #                         dataframe=df_trips_data,
+        #                         lookup=df_lookup
+        #                         )
         
-        df_lookup = read_lookup_local_csv(spark=spark_session,
-                                          dir_path=dir_path)
+        # df_wrangled = revenue_zones(spark=spark_session,
+        #                             dir_path=dir_path,
+        #                             dataframe=df_joined)
 
-
-        df_joined = join_lookup(spark=spark_session,
-                                dir_path=dir_path,
-                                dataframe=df_wrangled,
-                                lookup=df_lookup
-                                )
-        
         write_to_bigquery(spark=spark_session,
                           dir_path=dir_path,
                           bq_client=bq_client,
@@ -202,11 +201,11 @@ if __name__ == '__main__':
                     types.StructField('congestion_surcharge', types.DoubleType(), True)])
 
 
-    gcp_credentials_block = GcpCredentials.load("zoomcamp-gcp-creds")
+    gcp_credentials_block = GcpCredentials.load("nyc-taxi")
 
-    bq_client_ = gcp_credentials_block.get_bigquery_client()
+    bq_client = gcp_credentials_block.get_bigquery_client()
     
-    bq_table_id = 'esoteric-code-377203.nyc_taxi_report.revenue_zones'
+    bq_table_id = 'esoteric-code-377203.nyc_taxi_report.fact_table'
 
     # Running the main flow
     data_pipeline(n_month=args.n_month,
@@ -214,5 +213,5 @@ if __name__ == '__main__':
                   month=args.month,
                   schema_yellow=schema_yellow,
                   schema_green=schema_green,
-                  bq_client=bq_client_,
+                  bq_client=bq_client,
                   bq_table_id=bq_table_id)
