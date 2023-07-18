@@ -46,19 +46,18 @@ def data_pipeline(n_month, year, month, schema_yellow, schema_green, bq_client, 
     n_max_cores = n_executors * n_cores
 
     # Add additional spark configurations
-    conf = SparkConf().setMaster(f'local[{n_cpus}]').setAppName("Medium post")
-    conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
-    conf.set("parquet.enable.summary-metadata", "false")
-    conf.set("spark.sql.broadcastTimeout",  "3600")
-    conf.set("spark.sql.autoBroadcastJoinThreshold",  "1073741824")
-    conf.set("spark.dynamicAllocation.enabled", "true")
+    conf = SparkConf().setMaster(f'local[{n_cpus}]').setAppName("nyc taxi")
+    # conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+    # # conf.set("spark.sql.broadcastTimeout", "3600")
+    # conf.set("spark.sql.autoBroadcastJoinThreshold",  "1073741824")
+    # conf.set("spark.dynamicAllocation.enabled", "true")
     conf.set("spark.sql.debug.maxToStringFields", "100")
-    conf.set("spark.executor.memory", "10g")
-    conf.set("spark.driver.memory", "10g")
+    # conf.set("spark.executor.memory", "10g")
+    # conf.set("spark.driver.memory", "10g")
     conf.set("spark.executor.cores", str(n_cores))
     conf.set("spark.cores.max", str(n_max_cores))
-    conf.set("spark.storage.memoryFraction", "0")
-    conf.set("spark.driver.maxResultSize", "8g")
+    # conf.set("spark.storage.memoryFraction", "0")
+    # conf.set("spark.driver.maxResultSize", "8g")
     conf.set("spark.files.overwrite","true")
 
     # Setting up the Spark cluster
