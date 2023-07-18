@@ -8,11 +8,11 @@ The aim of this project is to drill myself in batch processing with PySpark. Thi
 
 that incorporate multiple tools for the purpose of extract, transform and load data then finally visualizing it.
 
-You can check the end result (Visualization) here
+You can check the end result (Visualization) [here](https://lookerstudio.google.com/reporting/a887ec6e-d551-48ee-9e4a-9eea1a49ee01)
 
-<!-- Main Page            |  Player Dashboard           | Head to Head                          |
-:-------------------------:|:-------------------------: | :-------------------------:   |
-![](pics/main%20page.png)  |  ![](pics/player%20dashboard.png)  |  ![](pics/head%20to%20head.png)   | -->
+Data Model          |  Dashboard          |
+:-------------------------:|:-------------------------: |
+![](https://github.com/acothaha/img/blob/main/batch_processing_pyspark/nyc_.png?raw=true)  |  ![](https://github.com/acothaha/img/blob/main/batch_processing_pyspark/NYC_Taxi_Stats_Dashboard-1.png?raw=true)  |
 
 
 ## **Project Datasets**
